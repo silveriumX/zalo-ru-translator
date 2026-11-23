@@ -1,0 +1,8 @@
+body { width: 310px; padding: 16px; margin: 0; box-sizing: border-box; font: 14px/1.5 system-ui, sans-serif; color: #18304b; background: #f3f7fb; }
+h1 { font-size: 18px; margin: 0 0 12px; }
+input { display: block; box-sizing: border-box; width: 100%; padding: 7px; border: 1px solid #7188a1; border-radius: 6px; }
+p { margin: 9px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+button { cursor: pointer; color: #17488d; background: white; border: 1px solid #7188a1; border-radius: 6px; padding: 6px 10px; }
+button[type=submit] { background: #17488d; color: white; border-color: #17488d; }
+:focus-visible { outline: 2px solid #17488d; outline-offset: 2px; }

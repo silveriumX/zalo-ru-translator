@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
+#header, #messageViewScroll, #chatInput { background: white; padding: 12px; }
+#messageViewScroll { background: #e8eef4; padding: 12px; min-height: 150px; }
+.chat-message { background: white; margin: 5px 0; padding: 8px; width: fit-content; max-width: 90%; border-radius: 8px; }
+.chat-message.me { margin-inline-start: auto; }
+#sent { white-space: pre-wrap; }
+#richInput { padding: 10px; min-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<div class="conv-item selected" data-id="sample-chat"></div>
+<header id="header"><b class="name">Тестовый чат</b></header>
+<main id="messageViewScroll">
+  <article class="chat-message"><div data-component="message-text-content">Xin chào! Ngày mai bạn có rảnh không?</div></article>
+  <article class="chat-message"><div data-component="message-text-content">Hello! Could you send me the address?</div></article>
+  <article class="chat-message me"><div data-component="message-text-content">Cảm ơn!</div></article>
+</main>
+<div id="chatInput"><div id="richInput" contenteditable="true" aria-label="Message"></div><button id="nativeSend">Send</button></div>
+<output id="sent"></output>
+<script>
+const input = document.querySelector('#richInput')
+document.querySelector('#nativeSend').onclick = () => {
+  document.querySelector('#sent').textContent = input.innerText
+  input.textContent = ''
+  input.dispatchEvent(new InputEvent('input', { bubbles: true }))
+}
+</script>
+</html>

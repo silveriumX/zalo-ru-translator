@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Настройки перевода Zalo</title>
+<link rel="stylesheet" href="settings.css">
+<form>
+  <h1>Перевод Zalo</h1>
+  <label for="cloudKey">Ключ Google Cloud Translation</label>
+  <input id="cloudKey" type="password" autocomplete="off" spellcheck="false">
+  <p>Встроенный перевод Chrome работает без ключа. Кнопка «Через Google» передаёт выбранный текст Google Cloud. Возможна оплата по тарифу вашего проекта.</p>
+  <div class="actions"><button type="submit">Сохранить ключ</button><button id="clear" type="button">Удалить ключ</button></div>
+  <p id="status" role="status"></p>
+</form>
+<script src="settings.js"></script>
+</html>

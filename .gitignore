@@ -1,0 +1,4 @@
+.DS_Store
+node_modules/
+CURRENT_STATE.md
+dist/

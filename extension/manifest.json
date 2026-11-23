@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Zalo — переводчик на русский",
+  "version": "1.0.0",
+  "description": "Русский перевод переписки и ответы на вьетнамском или английском в Zalo Web.",
+  "minimum_chrome_version": "138",
+  "permissions": [
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "https://translation.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "cloud.js"
+  },
+  "action": {
+    "default_popup": "settings.html",
+    "default_title": "Настройки перевода Zalo"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.zalo.me/*"
+      ],
+      "js": [
+        "translator.js",
+        "zalo.js"
+      ],
+      "run_at": "document_start",
+      "css": [
+        "zalo.css"
+      ]
+    }
+  ]
+}
