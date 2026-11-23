@@ -53,6 +53,12 @@ async function main() {
     if (!real) {
       const file = path.join(extension, 'translator.js')
       await writeFile(file, `
+        const testSend = chrome.runtime.sendMessage.bind(chrome.runtime)
+        chrome.runtime.sendMessage = (...args) => {
+          const data = document.documentElement.dataset
+          data.cloudRequests = String(Number(data.cloudRequests || 0) + 1)
+          return testSend(...args)
+        }
         globalThis.LanguageDetector = {
           availability: async () => 'available',
           create: async () => ({ detect: async text => [{ detectedLanguage: text.startsWith('Xin') ? 'vi' : 'en' }] })
@@ -134,9 +140,47 @@ async function main() {
       await translate.click()
       await page.getByText('Тестовая ошибка.').waitFor()
       assert.equal(await editor.innerText(), 'ОШИБКА')
-      await page.locator('.zru-bar').getByRole('button',{name:'Через Google'}).click()
+      const google = page.locator('.zru-bar').getByRole('button',{name:'Через Google'})
+      await google.evaluate(node => node.click())
+      assert.equal(await page.locator('html').getAttribute('data-cloud-requests'), null)
+      await editor.fill('Другой текст')
+      await google.waitFor({ state: 'hidden' })
+      await editor.fill('ОШИБКА')
+      await translate.click()
+      await google.click()
       await page.getByText('Облачный перевод настраивается в меню расширения.').waitFor()
+      assert.equal(await page.locator('html').getAttribute('data-cloud-requests'), '1')
       assert.equal(await editor.innerText(), 'ОШИБКА')
+      await editor.fill('Привет!')
+      await translate.click()
+      await page.getByRole('button', { name: 'Вернуть оригинал' }).waitFor()
+      await page.evaluate(() => {
+        document.querySelector('.conv-item.selected').dataset.id = 'second-chat'
+        document.querySelector('#header .name').textContent = 'Второй чат'
+        document.querySelector('#richInput').textContent = 'Черновик второго чата'
+      })
+      await translate.waitFor()
+      assert.equal(await editor.innerText(), 'Черновик второго чата')
+      await inbound.evaluate(node => {
+        node.classList.add('me')
+        node.firstElementChild.textContent = 'Повторно использованная строка'
+      })
+      await inbound.locator('.zru-translation').waitFor({ state: 'detached' })
+      await inbound.evaluate(node => {
+        node.classList.remove('me')
+        node.firstElementChild.textContent = 'Xin chào'
+      })
+      await inbound.locator('.zru-result').waitFor()
+      await inbound.evaluate(node => { node.firstElementChild.textContent = 'ОШИБКА' })
+      await inbound.getByRole('button', { name: 'Перевести', exact: true }).click()
+      const googleIncoming = inbound.getByRole('button', { name: 'Через Google' })
+      await googleIncoming.evaluate(node => node.click())
+      assert.equal(await page.locator('html').getAttribute('data-cloud-requests'), '1')
+      await googleIncoming.click()
+      await inbound.getByText('Облачный перевод настраивается в меню расширения.').waitFor()
+      assert.equal(await page.locator('html').getAttribute('data-cloud-requests'), '2')
+      await inbound.evaluate(node => { node.firstElementChild.textContent = 'Xin chào' })
+      await inbound.locator('.zru-result').waitFor()
       await select.selectOption('off')
       await translate.waitFor({ state: 'hidden' })
       await editor.fill('Оригинал')
@@ -159,7 +203,7 @@ async function main() {
     }
     assert.deepEqual(pageErrors, [])
     console.log(real ? 'PASS Chrome models: VI→RU, RU→VI, RU→EN' :
-      'PASS incoming, VI, EN, original, restore, stale draft, offline/API errors, persistence and 360 px')
+      'PASS incoming, VI, EN, original, restore, stale draft, offline/API errors, untrusted clicks, chat switching, reused message, persistence and 360 px')
   } catch (error) {
     await mkdir(evidence, { recursive: true })
     await context?.pages().at(-1)?.screenshot({ path: path.join(evidence, real ? 'chrome-error.png' : 'error.png') }).catch(() => {})

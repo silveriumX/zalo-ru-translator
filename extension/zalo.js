@@ -22,7 +22,9 @@
 
   function button(label, action) {
     const node = element('button', label, { type: 'button' })
-    node.addEventListener('click', action)
+    node.addEventListener('click', event => {
+      if (event.isTrusted) action()
+    })
     return node
   }
 
@@ -39,7 +41,18 @@
 
   function mount() {
     const current = document.querySelector('#chatInput #richInput[contenteditable="true"]')
-    if (editor === current && bar?.root.isConnected) return
+    if (editor === current && bar?.root.isConnected) {
+      if (preview && (!sameThread(preview.conversation) || read(editor) !== preview.translated)) {
+        preview = undefined
+        resetBar()
+      }
+      if (bar.job && !bar.job.current()) {
+        bar.job = undefined
+        resetBar()
+      }
+      if (bar.offer && !bar.offer()) resetBar()
+      return
+    }
     bar?.root.remove()
     bar = undefined
     preview = undefined
@@ -78,6 +91,7 @@
     bar.primary.hidden = mode === 'off'
     bar.primary.disabled = Boolean(bar.job)
     bar.cloud.hidden = true
+    bar.offer = undefined
     bar.undo.hidden = true
     bar.status.textContent = ''
   }
@@ -109,6 +123,7 @@
 
   async function prepare(cloud) {
     if (!editor || !bar || mode === 'off' || bar.job || preview) return
+    if (cloud && !bar.offer?.()) return
     const input = editor
     const original = read(input)
     if (!original.trim()) {
@@ -126,7 +141,9 @@
     const conversation = thread()
     const stillCurrent = () => session === bar && input.isConnected && draftVersion === version &&
       target === mode && sameThread(conversation) && read(input) === original
-    session.job = true
+    const job = { current: stillCurrent }
+    session.job = job
+    session.offer = undefined
     session.primary.disabled = true
     session.cloud.hidden = true
     session.status.textContent = 'Переводим ответ…'
@@ -143,11 +160,16 @@
     } catch (error) {
       if (!stillCurrent()) return
       session.status.textContent = error.message || 'Не удалось перевести ответ.'
-      session.cloud.hidden = cloud
+      if (!cloud) {
+        session.offer = stillCurrent
+        session.cloud.hidden = false
+      }
     } finally {
-      session.job = false
-      session.primary.disabled = false
-      if (session === bar && !preview && !stillCurrent()) resetBar()
+      if (session.job === job) {
+        session.job = undefined
+        session.primary.disabled = false
+        if (session === bar && !preview && !stillCurrent()) resetBar()
+      }
     }
   }
 
@@ -161,10 +183,9 @@
   document.addEventListener('input', event => {
     if (event.target !== editor) return
     draftVersion++
-    if (preview) {
-      preview = undefined
-      resetBar()
-    }
+    const shouldReset = preview || bar?.offer
+    preview = undefined
+    if (shouldReset) resetBar()
   }, true)
 
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -198,16 +219,17 @@
     if (!list) return
     for (const text of list.querySelectorAll(textSelector)) {
       const row = text.closest('.chat-message')
-      if (!row || row.matches('.me') || row.querySelector('.message-wrapper--me')) continue
+      const received = row && !row.matches('.me') && !row.querySelector('.message-wrapper--me')
       const original = read(text).trim()
       let state = messages.get(text)
-      if (state && state.original !== original) {
+      if (state && (!received || state.original !== original)) {
         state.box?.remove()
         intersection.unobserve(text)
+        visible.delete(text)
         messages.delete(text)
         state = undefined
       }
-      if (!state && /\p{L}/u.test(original)) {
+      if (!state && received && /\p{L}/u.test(original)) {
         messages.set(text, { original })
         intersection.observe(text)
       }
@@ -227,13 +249,14 @@
   }
 
   async function translateMessage(text, state, clicked = false, cloud = false) {
-    if (state.running) return
+    const row = text.closest('.chat-message')
+    const current = () => text.isConnected && messages.get(text) === state &&
+      !row?.matches('.me') && !row?.querySelector('.message-wrapper--me') && read(text).trim() === state.original
+    if (state.running || !current() || !incoming) return
     state.started = true
     state.running = true
     state.waitingFor = undefined
     activeJobs++
-    const current = () => text.isConnected && messages.get(text) === state &&
-      read(text).trim() === state.original
     const show = (...nodes) => {
       if (!current()) return
       if (!state.box?.isConnected) {
@@ -273,7 +296,8 @@
     mode = Object.hasOwn(modes, settings.mode) ? settings.mode : 'vi'
     incoming = settings.incoming !== false
     new MutationObserver(schedule).observe(document.documentElement, {
-      childList: true, subtree: true, characterData: true
+      childList: true, subtree: true, characterData: true, attributes: true,
+      attributeFilter: ['class', 'data-id', 'contenteditable']
     })
     schedule()
   })
