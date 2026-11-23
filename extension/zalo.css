@@ -26,7 +26,6 @@
   font: inherit;
   cursor: pointer;
 }
-.zru-bar button:first-of-type { background: #17488d; color: white; border-color: #17488d; }
 .zru-bar button:disabled { opacity: .65; cursor: wait; }
 .zru-bar :focus-visible, .zru-translation :focus-visible { outline: 2px solid #17488d; outline-offset: 2px; }
 .zru-status:not(:empty) { margin-block-start: 4px; }
@@ -64,12 +63,6 @@
   background: var(--zru-surface);
   color: var(--zru-accent);
 }
-.zru-bar button:first-of-type {
-  background: #e7efff;
-  color: #173e84;
-  border-color: #c9dcfa;
-  font-weight: 650;
-}
 .zru-incoming-label input { accent-color: #215db7; }
 .zru-status:not(:empty) { margin-block-start: 6px; color: var(--zru-ink); }
 .zru-bar .zru-send {
@@ -99,5 +92,4 @@
     --zru-surface: #273d5a;
     background: #1c2b3d;
   }
-  .zru-bar button:first-of-type { background: #29466b; color: #ebf3ff; border-color: #486183; }
 }

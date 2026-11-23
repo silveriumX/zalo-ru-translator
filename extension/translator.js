@@ -50,20 +50,26 @@ const zaloTranslate = (() => {
     return code.split('-')[0]
   }
 
+  function unsupported(message) {
+    const error = new Error(message)
+    error.cloudEligible = true
+    return error
+  }
+
   async function translate(text, target, source, cloud, update) {
     if (cloud) {
       const response = await chrome.runtime.sendMessage({ action: 'translate', text, source, target })
       if (!response?.ok) throw new Error(response?.message || 'Облачный перевод недоступен')
       return response.text
     }
-    if (!globalThis.Translator) throw new Error('Перевод недоступен в этом Chrome')
+    if (!globalThis.Translator) throw unsupported('Перевод недоступен в этом Chrome. Можно отправить текст в Google для перевода.')
     source ||= await detect(text, update)
     if (source === target) return text
     const pair = source + ':' + target
     const options = { sourceLanguage: source, targetLanguage: target, monitor: watch(update) }
     if (!translators.has(pair)) {
       const availability = await Translator.availability(options)
-      if (availability === 'unavailable') throw new Error('Chrome не поддерживает этот язык. Доступен облачный режим.')
+      if (availability === 'unavailable') throw unsupported('Chrome не поддерживает этот язык. Можно отправить текст в Google для перевода.')
       if (!translators.has(pair)) {
         if (availability !== 'available') requireGesture(pair)
         translators.set(pair, create(Translator, options).then(instance => {
