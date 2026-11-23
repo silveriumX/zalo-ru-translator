@@ -75,6 +75,9 @@
 
     const direct = button('Отправить перевод', () => void prepare())
     direct.className = 'zru-send'
+    // Zalo redraws the panel when its editor loses focus during a mouse press.
+    // Keep the editor focused until the button receives its click.
+    direct.addEventListener('mousedown', event => event.preventDefault())
     const inboundLabel = element('label', '', { class: 'zru-incoming-label' })
     const inbound = element('input', '', { type: 'checkbox' })
     inbound.checked = incoming

@@ -41,6 +41,9 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
 <output id="sent"></output>
 <script>
 const input = document.querySelector('#richInput')
+input.addEventListener('blur', event => {
+  if (event.relatedTarget?.matches('.zru-send')) document.querySelector('.zru-bar').remove()
+})
 const composer = document.querySelector('#chat-box-input-container-id')
 composer.onclick = () => { composer.dataset.clicks = String(Number(composer.dataset.clicks || 0) + 1) }
 document.querySelector('#nativeSend').onclick = () => {

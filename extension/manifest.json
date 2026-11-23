@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zalo — переводчик на русский",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Русский перевод переписки и ответы на вьетнамском или английском в Zalo Web.",
   "minimum_chrome_version": "138",
   "permissions": [
