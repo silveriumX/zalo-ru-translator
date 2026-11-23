@@ -142,6 +142,7 @@
     const stillCurrent = () => session === bar && input.isConnected && draftVersion === version &&
       target === mode && sameThread(conversation) && read(input) === original
     const job = { current: stillCurrent }
+    const isActive = () => session.job === job && stillCurrent()
     session.job = job
     session.offer = undefined
     session.primary.disabled = true
@@ -149,16 +150,16 @@
     session.status.textContent = 'Переводим ответ…'
     try {
       const result = await zaloTranslate.translate(original, target, 'ru', cloud, status => {
-        if (stillCurrent()) session.status.textContent = status
+        if (isActive()) session.status.textContent = status
       })
-      if (!stillCurrent()) return
+      if (!isActive()) return
       if (!result?.trim() || !replace(input, result)) throw new Error('Перевод не удалось вставить. Повторите попытку.')
       preview = { input, source: original, translated: read(input), conversation }
       session.primary.hidden = true
       session.undo.hidden = false
       session.status.textContent = 'Перевод в поле Zalo. Проверьте текст и отправьте обычной кнопкой.'
     } catch (error) {
-      if (!stillCurrent()) return
+      if (!isActive()) return
       session.status.textContent = error.message || 'Не удалось перевести ответ.'
       if (!cloud) {
         session.offer = stillCurrent

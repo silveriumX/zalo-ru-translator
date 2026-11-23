@@ -67,7 +67,8 @@ async function main() {
           availability: async ({sourceLanguage}) => sourceLanguage === 'xx' ? 'unavailable' : 'available',
           create: async ({targetLanguage}) => ({
             translate: async text => {
-              await new Promise(resolve => setTimeout(resolve, 250))
+              await new Promise(resolve => setTimeout(resolve, text === 'Привет!' ? 650 : 250))
+              if (targetLanguage !== 'ru') document.documentElement.dataset.lastTranslated = text
               if (text.includes('ОШИБКА')) throw new Error('Тестовая ошибка.')
               if (targetLanguage === 'ru') return text.startsWith('Xin') ? 'Привет! Ты завтра свободен?' : 'Привет! Пришлите адрес.'
               return (targetLanguage === 'vi' ? 'Chào' : 'Hello') + '\\n' + text.split('\\n').slice(1).join('\\n')
@@ -161,6 +162,15 @@ async function main() {
       })
       await translate.waitFor()
       assert.equal(await editor.innerText(), 'Черновик второго чата')
+      await editor.fill('Привет!')
+      await page.locator('html').evaluate(node => { delete node.dataset.lastTranslated })
+      await translate.click()
+      await page.locator('.conv-item.selected').evaluate(node => { node.dataset.id = 'away-chat' })
+      await page.waitForFunction(() => !document.querySelector('.zru-controls button').disabled)
+      await page.locator('.conv-item.selected').evaluate(node => { node.dataset.id = 'second-chat' })
+      await page.waitForFunction(() => document.documentElement.dataset.lastTranslated === 'Привет!')
+      assert.equal(await editor.innerText(), 'Привет!')
+      assert.equal(await page.getByRole('button', { name: 'Вернуть оригинал' }).count(), 0)
       await inbound.evaluate(node => {
         node.classList.add('me')
         node.firstElementChild.textContent = 'Повторно использованная строка'
