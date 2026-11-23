@@ -9,6 +9,14 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
 .chat-message { background: white; margin: 5px 0; padding: 8px; width: fit-content; max-width: 90%; border-radius: 8px; }
 .chat-message.me { margin-inline-start: auto; }
 #sent { white-space: pre-wrap; }
+#chat-input-container-id { display:flex; align-items:flex-end; }
+.chat-input-container__left-layout { min-width:calc(100% - 74px); flex-grow:1; }
+#normal-buttons-group-id { display:flex; align-items:center; gap:6px; }
+@media (prefers-color-scheme: dark) {
+  body { color:#e8eef7; background:#1b2532; }
+  #header, #chatInput, .chat-message { background:#263448; }
+  #messageViewScroll { background:#1a2434; }
+}
 #richInput { padding: 10px; min-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>
 <div class="conv-item selected" data-id="sample-chat"></div>
@@ -18,12 +26,24 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
   <article class="chat-message"><div data-component="message-text-content">Hello! Could you send me the address?</div></article>
   <article class="chat-message me"><div data-component="message-text-content">Cảm ơn!</div></article>
 </main>
-<div id="chatInput"><div id="richInput" contenteditable="true" aria-label="Message"></div><button id="nativeSend">Send</button></div>
+<div id="chatInput">
+  <div id="chat-input-container-id" class="--simple-normal-mode">
+    <div class="chat-input-container__left-layout" style="min-width:calc(100% - 74px)">
+      <div id="richInput" contenteditable="true" aria-label="Message"></div>
+    </div>
+    <div class="chat-input-container__right-layout">
+      <div id="normal-buttons-group-id"><button id="nativeSend" class="send-msg-btn">Send</button></div>
+    </div>
+  </div>
+</div>
 <output id="sent"></output>
 <script>
 const input = document.querySelector('#richInput')
 document.querySelector('#nativeSend').onclick = () => {
-  document.querySelector('#sent').textContent = input.innerText
+  const sent = document.querySelector('#sent')
+  sent.dataset.count = String(Number(sent.dataset.count || 0) + 1)
+  sent.textContent = input.innerText
+  if (sent.dataset.keepDraft === 'yes') return
   input.textContent = ''
   input.dispatchEvent(new InputEvent('input', { bubbles: true }))
 }

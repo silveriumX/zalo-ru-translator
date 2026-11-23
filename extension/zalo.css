@@ -42,3 +42,70 @@
 @media (prefers-color-scheme: dark) {
   .zru-bar, .zru-translation { color: #e6efff; background: #1c2b3d; border-color: #7194bf; }
 }
+
+/* The panel and the send action share an accent while keeping native Zalo controls legible. */
+.zru-bar {
+  --zru-ink: #192b46;
+  --zru-accent: #174eab;
+  --zru-line: #d6e2f3;
+  --zru-surface: #fff;
+  color: var(--zru-ink);
+  background: linear-gradient(112deg, #f0f6ff, #fafcff 70%);
+  padding: 8px 12px;
+  border-color: var(--zru-line);
+}
+.zru-controls { gap: 8px; }
+.zru-select-label { font-weight: 650; }
+.zru-bar button, .zru-bar select {
+  min-height: 32px;
+  border-color: var(--zru-line);
+  border-radius: 8px;
+  background: var(--zru-surface);
+  color: var(--zru-accent);
+}
+.zru-bar button:first-of-type {
+  background: #e7efff;
+  color: #173e84;
+  border-color: #c9dcfa;
+  font-weight: 650;
+}
+.zru-incoming-label input { accent-color: #215db7; }
+.zru-status:not(:empty) { margin-block-start: 6px; color: var(--zru-ink); }
+.zru-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin: 2px 5px;
+  min-inline-size: 116px;
+  min-block-size: 32px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: #225cb8;
+  color: #fff;
+  font: 650 12px/1.18 system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#chat-input-container-id.--simple-normal-mode:has(.zru-send:not([hidden])) > .chat-input-container__left-layout {
+  flex: 1 1 auto;
+  min-width: 0 !important;
+}
+.zru-send:hover { background: #174a9c; }
+.zru-send:focus-visible { outline: 2px solid #2469d4; outline-offset: 2px; }
+.zru-send:disabled { opacity: .65; cursor: wait; }
+.zru-send[hidden] { display: none !important; }
+@media (max-width: 420px) {
+  .zru-incoming-label { margin-inline-start: 0; }
+}
+@media (prefers-color-scheme: dark) {
+  .zru-bar {
+    --zru-ink: #deebff;
+    --zru-accent: #bed5ff;
+    --zru-line: #486183;
+    --zru-surface: #273d5a;
+    background: #1c2b3d;
+  }
+  .zru-bar button:first-of-type { background: #29466b; color: #ebf3ff; border-color: #486183; }
+}

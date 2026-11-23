@@ -23,7 +23,9 @@
   function button(label, action) {
     const node = element('button', label, { type: 'button' })
     node.addEventListener('click', event => {
-      if (event.isTrusted) action()
+      if (!event.isTrusted) return
+      event.stopPropagation()
+      action()
     })
     return node
   }
@@ -45,14 +47,17 @@
       if (preview && (!sameThread(preview.conversation) || read(editor) !== preview.translated)) {
         preview = undefined
         resetBar()
+        bar.status.textContent = 'Предпросмотр сброшен. Можно перевести текущий черновик.'
       }
       if (bar.job && !bar.job.current()) {
         bar.job = undefined
         resetBar()
       }
       if (bar.offer && !bar.offer()) resetBar()
+      mountSendButton()
       return
     }
+    bar?.direct.remove()
     bar?.root.remove()
     bar = undefined
     preview = undefined
@@ -68,6 +73,20 @@
     select.addEventListener('change', () => chrome.storage.sync.set({ mode: select.value }))
 
     const primary = button('Перевести ответ', () => prepare(false))
+    const direct = button('Перевести и отправить', () => {
+      if (!preview) {
+        void prepare(false, true)
+        return
+      }
+      const session = bar
+      if (mode === 'off' || session.job || session.direct.disabled) return
+      setBusy(true, 'Отправляем…')
+      void sendPreview(preview).finally(() => {
+        if (session === bar && !session.job) setBusy(false)
+      })
+    })
+    direct.className = 'zru-send'
+    direct.title = 'Отправить перевод на выбранном языке'
     const cloud = button('Через Google', () => prepare(true))
     const undo = button('Вернуть оригинал', restore)
     const inboundLabel = element('label', '', { class: 'zru-incoming-label' })
@@ -80,8 +99,9 @@
     row.append(label, primary, undo, cloud, inboundLabel)
     root.append(row, status)
     editor.closest('#chatInput').prepend(root)
-    bar = { root, select, primary, undo, cloud, status, inbound }
+    bar = { root, select, primary, direct, undo, cloud, status, inbound }
     resetBar()
+    mountSendButton()
   }
 
   function resetBar() {
@@ -89,11 +109,35 @@
     bar.select.value = mode
     bar.inbound.checked = incoming
     bar.primary.hidden = mode === 'off'
-    bar.primary.disabled = Boolean(bar.job)
+    setBusy(Boolean(bar.job))
+    bar.direct.hidden = mode === 'off'
     bar.cloud.hidden = true
     bar.offer = undefined
     bar.undo.hidden = true
     bar.status.textContent = ''
+  }
+
+  function setBusy(busy, phase = 'Переводим…') {
+    bar.primary.disabled = busy
+    bar.direct.disabled = busy
+    bar.direct.textContent = busy ? phase : 'Отправить перевод'
+  }
+
+  function nativeSendButton() {
+    return editor?.closest('#chatInput')?.querySelector('#normal-buttons-group-id .send-msg-btn')
+  }
+
+  function mountSendButton() {
+    if (!bar || !editor) return
+    const group = editor.closest('#chatInput').querySelector('#normal-buttons-group-id')
+    if (!group) {
+      bar.direct.remove()
+      return
+    }
+    const native = nativeSendButton()
+    if (bar.direct.parentElement !== group || (native && bar.direct.nextElementSibling !== native)) {
+      group.insertBefore(bar.direct, native || null)
+    }
   }
 
   function thread() {
@@ -121,7 +165,43 @@
     return document.execCommand('insertText', false, value)
   }
 
-  async function prepare(cloud) {
+  function previewIsCurrent(candidate) {
+    return candidate === preview && candidate.input === editor && editor?.isConnected &&
+      sameThread(candidate.conversation) && read(editor) === candidate.translated &&
+      mode === candidate.target && bar.select.value === candidate.target && !document.querySelector('.zl-modal')
+  }
+
+  async function sendPreview(candidate) {
+    const session = bar
+    if (candidate.dispatched) {
+      session.status.textContent = 'Команда уже передана Zalo. Проверьте сообщение в чате.'
+      return
+    }
+    if (!previewIsCurrent(candidate)) {
+      session.status.textContent = 'Черновик изменился. Переведите актуальный текст.'
+      schedule()
+      return
+    }
+    if (candidate.translated.trim() === candidate.source.trim() && /\p{Script=Cyrillic}/u.test(candidate.source)) {
+      session.status.textContent = 'Перевод совпал с оригиналом. Проверьте текст перед отправкой.'
+      return
+    }
+    // Zalo updates its native send action after receiving the editor's input event.
+    for (let attempt = 0; attempt < 18; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      if (session !== bar || !previewIsCurrent(candidate)) return
+      const native = nativeSendButton()
+      if (native?.getClientRects().length && !native.matches(':disabled, [aria-disabled="true"], .disabled, .--disabled')) {
+        candidate.dispatched = true
+        session.status.textContent = 'Команда отправки передана Zalo.'
+        native.click()
+        return
+      }
+    }
+    if (session === bar && previewIsCurrent(candidate)) session.status.textContent = 'Перевод готов. Когда кнопка Zalo станет доступна, отправьте текст вручную.'
+  }
+
+  async function prepare(cloud, send = false) {
     if (!editor || !bar || mode === 'off' || bar.job || preview) return
     if (cloud && !bar.offer?.()) return
     const input = editor
@@ -131,7 +211,7 @@
       input.focus()
       return
     }
-    if (input.querySelector('[contenteditable="false"], img, a, [style], b, i, strong, em, u, ul, ol')) {
+    if (input.querySelector('[contenteditable="false"], img, a, b, i, strong, em, u, ul, ol, [data-mention-id], [data-uid]')) {
       bar.status.textContent = 'Перевод ответа доступен для обычного текста.'
       return
     }
@@ -140,36 +220,52 @@
     const version = draftVersion
     const conversation = thread()
     const stillCurrent = () => session === bar && input.isConnected && draftVersion === version &&
-      target === mode && sameThread(conversation) && read(input) === original
+      target === mode && session.select.value === target && !document.querySelector('.zl-modal') &&
+      sameThread(conversation) && read(input) === original
     const job = { current: stillCurrent }
     const isActive = () => session.job === job && stillCurrent()
     session.job = job
     session.offer = undefined
-    session.primary.disabled = true
+    setBusy(true)
     session.cloud.hidden = true
     session.status.textContent = 'Переводим ответ…'
+    let result
     try {
-      const result = await zaloTranslate.translate(original, target, 'ru', cloud, status => {
+      result = await zaloTranslate.translate(original, target, 'ru', cloud, status => {
         if (isActive()) session.status.textContent = status
       })
       if (!isActive()) return
-      if (!result?.trim() || !replace(input, result)) throw new Error('Перевод не удалось вставить. Повторите попытку.')
-      preview = { input, source: original, translated: read(input), conversation }
+      if (!result?.trim()) throw new Error('Перевод получился пустым. Исходный текст сохранён.')
+      const inserted = replace(input, result)
+      const translated = read(input)
+      if (!inserted || translated.trim() !== result.replace(/\r\n/g, '\n').trim()) {
+        if (translated !== original && input.isConnected && sameThread(conversation)) replace(input, original)
+        throw new Error('Zalo не принял перевод. Проверьте поле ответа и повторите попытку.')
+      }
+      const candidate = { input, source: original, translated, conversation, target }
+      preview = candidate
+      job.current = () => previewIsCurrent(candidate)
       session.primary.hidden = true
       session.undo.hidden = false
-      session.status.textContent = 'Перевод в поле Zalo. Проверьте текст и отправьте обычной кнопкой.'
+      session.status.textContent = 'Перевод в поле Zalo. Проверьте текст или отправьте его.'
+      if (send) {
+        setBusy(true, 'Отправляем…')
+        await sendPreview(candidate)
+      }
     } catch (error) {
-      if (!isActive()) return
-      session.status.textContent = error.message || 'Не удалось перевести ответ.'
-      if (!cloud) {
+      if (!isActive() && (session !== bar || session.job !== job)) return
+      session.status.textContent = error.name === 'NotAllowedError'
+        ? 'Chrome ждёт повторного нажатия, чтобы загрузить язык.'
+        : error.message || 'Не удалось перевести ответ.'
+      if (!cloud && result === undefined && stillCurrent()) {
         session.offer = stillCurrent
         session.cloud.hidden = false
       }
     } finally {
       if (session.job === job) {
         session.job = undefined
-        session.primary.disabled = false
-        if (session === bar && !preview && !stillCurrent()) resetBar()
+        if (session === bar) setBusy(false)
+        if (session === bar && !preview && !stillCurrent() && result === undefined) resetBar()
       }
     }
   }
