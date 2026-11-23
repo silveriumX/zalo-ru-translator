@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
-#header, #messageViewScroll, #chatInput { background: white; padding: 12px; }
+#header, #messageViewScroll, #chat-box-input-container-id { background: white; padding: 12px; }
 #messageViewScroll { background: #e8eef4; padding: 12px; min-height: 150px; }
 .chat-message { background: white; margin: 5px 0; padding: 8px; width: fit-content; max-width: 90%; border-radius: 8px; }
 .chat-message.me { margin-inline-start: auto; }
@@ -14,7 +14,7 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
 #normal-buttons-group-id { display:flex; align-items:center; gap:6px; }
 @media (prefers-color-scheme: dark) {
   body { color:#e8eef7; background:#1b2532; }
-  #header, #chatInput, .chat-message { background:#263448; }
+  #header, #chat-box-input-container-id, .chat-message { background:#263448; }
   #messageViewScroll { background:#1a2434; }
 }
 #richInput { padding: 10px; min-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -26,6 +26,7 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
   <article class="chat-message"><div data-component="message-text-content">Hello! Could you send me the address?</div></article>
   <article class="chat-message me"><div data-component="message-text-content">Cảm ơn!</div></article>
 </main>
+<div id="chat-box-input-container-id">
 <div id="chatInput">
   <div id="chat-input-container-id" class="--simple-normal-mode">
     <div class="chat-input-container__left-layout" style="min-width:calc(100% - 74px)">
@@ -36,9 +37,12 @@ body { margin: 0; font: 15px system-ui; background: #e8eef4; color: #17273a; }
     </div>
   </div>
 </div>
+</div>
 <output id="sent"></output>
 <script>
 const input = document.querySelector('#richInput')
+const composer = document.querySelector('#chat-box-input-container-id')
+composer.onclick = () => { composer.dataset.clicks = String(Number(composer.dataset.clicks || 0) + 1) }
 document.querySelector('#nativeSend').onclick = () => {
   const sent = document.querySelector('#sent')
   sent.dataset.count = String(Number(sent.dataset.count || 0) + 1)

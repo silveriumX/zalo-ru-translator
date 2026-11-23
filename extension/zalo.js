@@ -54,10 +54,9 @@
         resetBar()
       }
       if (bar.offer && !bar.offer()) resetBar()
-      mountSendButton()
+      updateSendAvailability()
       return
     }
-    bar?.direct.remove()
     bar?.root.remove()
     bar = undefined
     preview = undefined
@@ -65,6 +64,13 @@
     if (!editor) return
 
     const root = element('section', '', { class: 'zru-bar', 'aria-label': 'Перевод Zalo' })
+    const isBlank = event => !event.target.closest('button, select, label, input')
+    root.addEventListener('pointerdown', event => {
+      if (isBlank(event)) event.preventDefault()
+    })
+    root.addEventListener('click', event => {
+      if (isBlank(event)) event.stopPropagation()
+    })
     const row = element('div', '', { class: 'zru-controls' })
     const label = element('label', 'Ответ ', { class: 'zru-select-label' })
     const select = element('select', '', { 'aria-label': 'Язык ответа' })
@@ -96,12 +102,13 @@
     inboundLabel.append(inbound, document.createTextNode('Входящие на русском'))
     const status = element('div', '', { class: 'zru-status', role: 'status' })
     label.append(select)
-    row.append(label, primary, undo, cloud, inboundLabel)
+    const actions = element('div', '', { class: 'zru-actions' })
+    actions.append(label, primary, undo, cloud, direct)
+    row.append(actions, inboundLabel)
     root.append(row, status)
-    editor.closest('#chatInput').prepend(root)
+    editor.closest('#chatInput').before(root)
     bar = { root, select, primary, direct, undo, cloud, status, inbound }
     resetBar()
-    mountSendButton()
   }
 
   function resetBar() {
@@ -119,7 +126,8 @@
 
   function setBusy(busy, phase = 'Переводим…') {
     bar.primary.disabled = busy
-    bar.direct.disabled = busy
+    bar.busy = busy
+    updateSendAvailability()
     bar.direct.textContent = busy ? phase : 'Отправить перевод'
   }
 
@@ -127,17 +135,11 @@
     return editor?.closest('#chatInput')?.querySelector('#normal-buttons-group-id .send-msg-btn')
   }
 
-  function mountSendButton() {
+  function updateSendAvailability() {
     if (!bar || !editor) return
-    const group = editor.closest('#chatInput').querySelector('#normal-buttons-group-id')
-    if (!group) {
-      bar.direct.remove()
-      return
-    }
-    const native = nativeSendButton()
-    if (bar.direct.parentElement !== group || (native && bar.direct.nextElementSibling !== native)) {
-      group.insertBefore(bar.direct, native || null)
-    }
+    const empty = !read(editor).trim()
+    bar.direct.disabled = bar.busy || empty
+    bar.direct.title = empty ? 'Сначала напишите ответ' : 'Отправить перевод на выбранном языке'
   }
 
   function thread() {
@@ -283,6 +285,7 @@
     const shouldReset = preview || bar?.offer
     preview = undefined
     if (shouldReset) resetBar()
+    updateSendAvailability()
   }, true)
 
   chrome.storage.onChanged.addListener((changes, area) => {

@@ -132,7 +132,10 @@ async function main() {
     assert.equal(await page.locator('#sent').innerText(), english)
 
     const direct = page.locator('.zru-send')
-    assert.equal(await direct.evaluate(node => node.nextElementSibling?.id), 'nativeSend')
+    assert.equal(await direct.evaluate(node => node.closest('.zru-bar')?.nextElementSibling?.id), 'chatInput')
+    assert.equal(await page.locator('#normal-buttons-group-id > *').count(), 1)
+    assert.equal(await page.locator('#chatInput .zru-bar').count(), 0)
+    assert.equal(await direct.isDisabled(), true)
     await editor.fill('Привет! Отправьте, пожалуйста, адрес.')
     await direct.click()
     await page.waitForFunction(() => document.querySelector('#sent').dataset.count === '2', null, { timeout: 90000 })
@@ -255,6 +258,23 @@ async function main() {
       await translate.waitFor()
       await page.setViewportSize({ width: 360, height: 640 })
       await editor.fill('Привет!')
+      const coordinates = await page.evaluate(() => {
+        const composer = document.querySelector('#chatInput')
+        const parent = composer.getBoundingClientRect()
+        const native = document.querySelector('#nativeSend').getBoundingClientRect()
+        const input = document.querySelector('#richInput').getBoundingClientRect()
+        return [native.x - parent.x, native.y - parent.y, input.width]
+      })
+      const beforeClick = await page.locator('#chat-box-input-container-id').getAttribute('data-clicks')
+      await page.locator('.zru-bar').click({ position: { x: 2, y: 2 } })
+      assert.equal(await editor.evaluate(node => document.activeElement === node), true)
+      assert.equal(await page.locator('#chat-box-input-container-id').getAttribute('data-clicks'), beforeClick)
+      assert.deepEqual(await page.evaluate(() => {
+        const composer = document.querySelector('#chatInput').getBoundingClientRect()
+        const native = document.querySelector('#nativeSend').getBoundingClientRect()
+        const input = document.querySelector('#richInput').getBoundingClientRect()
+        return [native.x - composer.x, native.y - composer.y, input.width]
+      }), coordinates)
       await translate.click()
       await page.getByText('Переводим ответ…').waitFor()
       await page.screenshot({ path: path.join(evidence, 'narrow-loading.png') })
@@ -263,6 +283,7 @@ async function main() {
       await page.screenshot({ path: path.join(evidence, 'narrow.png') })
       await page.setViewportSize({ width: 1040, height: 610 })
       await page.emulateMedia({ colorScheme: 'dark' })
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       await page.screenshot({ path: path.join(evidence, 'dark.png') })
     }
     assert.deepEqual(pageErrors, [])
